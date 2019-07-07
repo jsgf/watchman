@@ -445,14 +445,14 @@ def install_platform_deps():
         print("Untested! Installing necessary packages...")
         # FIXME: make this work.  Contributions welcomed!
         pkgs = (
-            "autoconf automake libdouble-conversion-dev "
-            "libssl-dev make zip git libtool g++ libboost-all-dev "
-            "libevent-dev flex bison libgoogle-glog-dev libkrb5-dev "
-            "libsnappy-dev libsasl2-dev libnuma-dev libcurl4-gnutls-dev "
-            "libpcap-dev libdb5.3-dev cmake pkg-config python-dev "
+            "autoconf automake double-conversion-devel "
+            "openssl-devel make zip git libtool g++ boost-devel "
+            "libevent-devel flex bison glog-devel krb5-devel "
+            "snappy-devel cyrus-sasl-devel numactl-devel libcurl-devel "
+            "libpcap-devel libdb-devel cmake pkg-config python2-devel "
+            "pcre-devel "
         ).split()
-        run_cmd(["yum", "install"] + pkgs)
-        raise Exception("implement me")
+        run_cmd(["sudo", "dnf", "install"] + pkgs)
     elif os_name == "Ubuntu" or os_name.startswith("Debian"):
         # These dependencies have been tested on Ubuntu 16.04
         print("Installing necessary Ubuntu packages...")
