@@ -3,6 +3,8 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use error_chain::bail;
+
 use crate::errors::*;
 
 /// Sets a limit on the amount of recursion during deserialization. This does

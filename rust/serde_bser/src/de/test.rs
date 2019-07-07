@@ -3,6 +3,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::Cursor;
 
+use maplit::hashmap;
+use serde_derive::Deserialize;
+
 use crate::from_reader;
 use crate::from_slice;
 

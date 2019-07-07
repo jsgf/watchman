@@ -1,6 +1,7 @@
 use std::f64::consts;
 
 use serde_bytes;
+use serde_derive::Serialize;
 
 use super::serialize;
 
