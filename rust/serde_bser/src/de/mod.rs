@@ -11,7 +11,6 @@ mod variant;
 use std::io;
 use std::str;
 
-use error_chain::bail;
 use serde::{de, forward_to_deserialize_any};
 
 use crate::errors::*;
@@ -130,7 +129,12 @@ where
             BSER_INT16 => self.visit_i16(visitor),
             BSER_INT32 => self.visit_i32(visitor),
             BSER_INT64 => self.visit_i64(visitor),
-            ch => bail!(ErrorKind::DeInvalidStartByte("next item".into(), ch)),
+            ch => {
+                return Err(Error::DeInvalidStartByte {
+                    kind: "next item".into(),
+                    byte: HeaderByte(ch),
+                })
+            }
         }
     }
 
@@ -263,10 +267,12 @@ where
                 }
                 visitor.visit_enum(variant::VariantAccess::new(self, &guard))
             }
-            ch => bail!(ErrorKind::DeInvalidStartByte(
-                format!("enum '{}'", name),
-                ch
-            )),
+            ch => {
+                return Err(Error::DeInvalidStartByte {
+                    kind: format!("enum '{}'", name),
+                    byte: HeaderByte(ch),
+                })
+            }
         }
     }
 

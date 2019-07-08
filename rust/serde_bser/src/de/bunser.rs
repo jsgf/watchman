@@ -1,7 +1,6 @@
 //! Internal stateless code for handling BSER deserialization.
 
 use byteorder::{ByteOrder, NativeEndian};
-use error_chain::bail;
 
 use crate::de::read::{DeRead, Reference};
 use crate::errors::*;
@@ -35,7 +34,9 @@ where
         {
             let magic = self.read_bytes(2)?;
             if magic.get_ref() != &EMPTY_HEADER[..2] {
-                bail!("invalid magic header {:?}", magic);
+                return Err(Error::DeCustom {
+                    msg: format!("invalid magic header {:?}", magic),
+                });
             }
         }
         let bser_capabilities = self.read.next_u32(&mut self.scratch)?;
@@ -55,11 +56,13 @@ where
     pub fn end(&self, pdu_info: &PduInfo) -> Result<()> {
         let expected = (pdu_info.start + pdu_info.len) as usize;
         if self.read.read_count() != expected {
-            bail!(
-                "Expected {} bytes read, but only read {} bytes",
-                expected,
-                self.read.read_count()
-            );
+            return Err(Error::DeCustom {
+                msg: format!(
+                    "Expected {} bytes read, but only read {} bytes",
+                    expected,
+                    self.read.read_count()
+                ),
+            });
         }
         Ok(())
     }
@@ -87,7 +90,9 @@ where
         self.read.discard();
         let bytes = self
             .read_bytes(1)
-            .chain_err(|| "error while reading i8")?
+            .with_context(|| ErrMsg {
+                msg: "error while reading i8",
+            })?
             .get_ref();
         Ok(bytes[0] as i8)
     }
@@ -98,7 +103,9 @@ where
         self.read.discard();
         let bytes = self
             .read_bytes(2)
-            .chain_err(|| "error while reading i16")?
+            .with_context(|| ErrMsg {
+                msg: "error while reading i16",
+            })?
             .get_ref();
         Ok(NativeEndian::read_i16(bytes))
     }
@@ -109,7 +116,9 @@ where
         self.read.discard();
         let bytes = self
             .read_bytes(4)
-            .chain_err(|| "error while reading i32")?
+            .with_context(|| ErrMsg {
+                msg: "error while reading i32",
+            })?
             .get_ref();
         Ok(NativeEndian::read_i32(bytes))
     }
@@ -120,7 +129,9 @@ where
         self.read.discard();
         let bytes = self
             .read_bytes(8)
-            .chain_err(|| "error while reading i64")?
+            .with_context(|| ErrMsg {
+                msg: "error while reading i64",
+            })?
             .get_ref();
         Ok(NativeEndian::read_i64(bytes))
     }
@@ -133,7 +144,12 @@ where
             BSER_INT16 => self.next_i16()? as i64,
             BSER_INT32 => self.next_i32()? as i64,
             BSER_INT64 => self.next_i64()? as i64,
-            ch => bail!(ErrorKind::DeInvalidStartByte("integer".into(), ch)),
+            ch => {
+                return Err(Error::DeInvalidStartByte {
+                    kind: "integer".into(),
+                    byte: HeaderByte(ch),
+                })
+            }
         };
 
         Ok(value)
@@ -143,7 +159,9 @@ where
         self.read.discard();
         let bytes = self
             .read_bytes(8)
-            .chain_err(|| "error while reading f64")?
+            .with_context(|| ErrMsg {
+                msg: "error while reading f64",
+            })?
             .get_ref();
         Ok(NativeEndian::read_f64(bytes))
     }

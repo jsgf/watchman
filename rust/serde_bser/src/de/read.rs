@@ -3,7 +3,6 @@ use std::result;
 
 use crate::errors::*;
 use byteorder::{ByteOrder, NativeEndian};
-use error_chain::bail;
 
 #[cfg(feature = "debug_bytes")]
 use std::fmt;
@@ -61,7 +60,9 @@ pub trait DeRead<'de> {
     fn next_u32(&mut self, scratch: &mut Vec<u8>) -> Result<u32> {
         let bytes = self
             .next_bytes(4, scratch)
-            .chain_err(|| "error while parsing u32")?
+            .with_context(|| ErrMsg {
+                msg: "error while parsing u32",
+            })?
             .get_ref();
         Ok(NativeEndian::read_u32(bytes))
     }
@@ -114,7 +115,9 @@ where
 impl<'a> DeRead<'a> for SliceRead<'a> {
     fn next(&mut self) -> Result<u8> {
         if self.index >= self.slice.len() {
-            bail!("eof while reading next byte");
+            return Err(Error::DeCustom {
+                msg: "eof while reading next byte".into(),
+            });
         }
         let ch = self.slice[self.index];
         self.index += 1;
@@ -123,7 +126,9 @@ impl<'a> DeRead<'a> for SliceRead<'a> {
 
     fn peek(&mut self) -> Result<u8> {
         if self.index >= self.slice.len() {
-            bail!("eof while peeking next byte");
+            return Err(Error::DeCustom {
+                msg: "eof while peeking next byte".into(),
+            });
         }
         Ok(self.slice[self.index])
     }
@@ -146,7 +151,9 @@ impl<'a> DeRead<'a> for SliceRead<'a> {
         // BSER has no escaping or anything similar, so just go ahead and return
         // a reference to the bytes.
         if self.index + len > self.slice.len() {
-            bail!("eof while parsing bytes/string");
+            return Err(Error::DeCustom {
+                msg: "eof while parsing bytes/string".into(),
+            });
         }
         let borrowed = &self.slice[self.index..(self.index + len)];
         self.index += len;

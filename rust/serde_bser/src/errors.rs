@@ -1,53 +1,66 @@
 use std::fmt;
 
-use error_chain::error_chain;
 use serde::{de, ser};
+use snafu::Snafu;
 
-use crate::header::header_byte_desc;
+pub use snafu::ResultExt;
+pub type Result<T> = std::result::Result<T, Error>;
 
-error_chain! {
-    errors {
-        DeInvalidStartByte(kind: String, byte: u8) {
-            description("while deserializing BSER: invalid start byte")
-            display("while deserializing BSER: invalid start byte for {}: {}",
-                    kind, header_byte_desc(*byte))
-        }
-        DeCustom(msg: String) {
-            description("error while deserializing BSER")
-            display("error while deserializing BSER: {}", msg)
-        }
-        DeRecursionLimitExceeded(kind: String) {
-            description("while deserializing BSER: recursion limit exceeded")
-            display("while deserializing BSER: recursion limit exceeded with {}", kind)
-        }
-        SerCustom(msg: String) {
-            description("error while serializing BSER")
-            display("error while serializing BSER: {}", msg)
-        }
-        SerNeedSize(kind: &'static str) {
-            description("while serializing BSER: need size")
-            display("while serializing BSER: need size of {}", kind)
-        }
-        SerU64TooBig(v: u64) {
-            description("while serializing BSER: integer too big")
-            display("while serializing BSER: integer too big: {}", v)
-        }
+use crate::header::HeaderByte;
+
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub(crate)))]
+pub enum Error {
+    #[snafu(display("while deserializing BSER: invalid state byte for {}: {}", kind, byte))]
+    DeInvalidStartByte { kind: String, byte: HeaderByte },
+    #[snafu(display("error while deserializing BSER: {}", msg))]
+    DeCustom { msg: String },
+    #[snafu(display("while deserializing BSER: recursion limit exceeded with {}", kind))]
+    DeRecursionLimitExceeded { kind: String },
+    #[snafu(display("error while serializing BSER: {}", msg))]
+    SerCustom { msg: String },
+    #[snafu(display("while serializing BSER: need size of {}", kind))]
+    SerNeedSize { kind: &'static str },
+    #[snafu(display("while serializing BSER: integer too big: {}", v))]
+    SerU64TooBig { v: u64 },
+    #[snafu(display("IO Error: {}", source))]
+    Io { source: std::io::Error },
+    #[snafu(display("UTF8 error: {}", source))]
+    Utf8 { source: std::str::Utf8Error },
+    #[snafu(display("Error {}: {}", msg, source))]
+    ErrMsg {
+        msg: String,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<Error>,
+    },
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::Io { source: err }
     }
+}
 
-    foreign_links {
-        Io(::std::io::Error);
-        Utf8(::std::str::Utf8Error);
+impl From<std::str::Utf8Error> for Error {
+    fn from(err: std::str::Utf8Error) -> Self {
+        Error::Utf8 { source: err }
     }
 }
 
 impl de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        ErrorKind::DeCustom(format!("{}", msg)).into()
+        Error::DeCustom {
+            msg: format!("{}", msg),
+        }
+        .into()
     }
 }
 
 impl ser::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        ErrorKind::SerCustom(format!("{}", msg)).into()
+        Error::SerCustom {
+            msg: format!("{}", msg),
+        }
+        .into()
     }
 }
